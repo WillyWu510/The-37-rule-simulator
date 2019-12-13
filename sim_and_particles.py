@@ -59,4 +59,19 @@ class Ball:
         if self.y + self.radius > 10:
             self.y = 1-self.radius
             self.vy = -self.vy
-    
+class Simulation:
+    """
+       Simulation of two-dimensional elastic collision of particles.
+       We set the size of box be 10x10 
+        
+    """
+    def __init__(self, n,score):
+        """
+        Initialize the simulation of n particles.
+        """
+    def init_particles(self,n,score):
+        """Initialize the position, velocity, radius, score of particles."""
+    def collision(self):
+        """Handle the collision of particles."""
+    def animation(self):
+        """Visualize the simulation"""
