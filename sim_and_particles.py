@@ -7,23 +7,24 @@ from itertools import combinations
 class Particle:
     """A class representing a two-dimensional particle."""
 
-    def __init__(self, x, y, vx, vy, radius=0.01, styles=None):
+    def __init__(self, x, y, vx, vy, radius=0.01, styles=None , score=0):
         """Initialize the particle's position, velocity, and radius.
 
         Any key-value pairs passed in the styles dictionary will be passed
         as arguments to Matplotlib's Circle patch constructor.
 
         """
-
+        
         self.r = np.array((x, y))
         self.v = np.array((vx, vy))
         self.radius = radius
-
+        self.score = score
         self.styles = styles
         if not self.styles:
             # Default circle styles
             self.styles = {'edgecolor': 'b', 'fill': False}
-
+        self.particle_met=[]
+        
     # For convenience, map the components of the particle's position and
     # velocity vector onto the attributes x, y, vx and vy.
     @property
@@ -81,15 +82,16 @@ class Particle:
         if self.y + self.radius > 10:
             self.y = 10-self.radius
             self.vy = -self.vy
-
+    def have_met(self,other):
+        return other in self.met
 class Simulation:
     """A class for a simple hard-circle molecular dynamics simulation.
 
-    The simulation is carried out on a square domain: 0 <= x < 1, 0 <= y < 1.
+    The simulation is carried out on a square domain: 0 <= x < 10, 0 <= y < 10.
 
     """
 
-    def __init__(self, n, radius=0.01, styles=None):
+    def __init__(self, n, radius=0.01, styles=None, l_score = np.arange(1000)):
         """Initialize the simulation with n Particles with radii radius.
 
         radius can be a single value or a sequence with n values.
@@ -100,16 +102,15 @@ class Simulation:
 
         """
 
-        self.init_particles(n, radius, styles)
+        self.init_particles(n, radius, styles , score=l_score)
 
-    def init_particles(self, n, radius, styles=None):
+    def init_particles(self, n, radius, styles=None , score = np.arange(1000)):
         """Initialize the n Particles of the simulation.
 
         Positions and velocities are chosen randomly; radius can be a single
         value or a sequence with n values.
 
         """
-
         try:
             iterator = iter(radius)
             assert n == len(radius)
@@ -120,22 +121,30 @@ class Simulation:
                 for i in range(n):
                     yield radius
             radius = r_gen(n, radius)
-
-        self.n = n
+        np.random.shuffle(score)
+        self.n = n+1
         self.particles = []
+        domain_length=10
+        
+        x, y = 0.1 + (1- 2*0.1) * np.random.uniform(0,domain_length),0.1 + (1- 2*0.1) *   np.random.uniform(0,domain_length)
+        vr = np.random.random() + 0.05
+        vphi = 2*np.pi * np.random.random()
+        vx, vy = vr * np.cos(vphi), vr * np.sin(vphi)
+        You = Particle(x, y, vx, vy, 0.1, {'edgecolor': 'r','facecolor':'r', 'fill': True})
+        self.particles.append(You)
         for i, rad in enumerate(radius):
             # Try to find a random initial position for this particle.
             while True:
                 # Choose x, y so that the Particle is entirely inside the
                 # domain of the simulation.
-                domain_length=10
-                x, y = rad + (domain_length- 2*rad) * np.random.uniform(0,1),rad + (domain_length- 2*rad) * np.random.uniform(0,1)
+                
+                x, y = rad + (1- 2*rad) * np.random.uniform(0,domain_length),rad + (1- 2*rad) * np.random.uniform(0,domain_length)
                 # Choose a random velocity (within some reasonable range of
                 # values) for the Particle.
                 vr = np.random.random() + 0.05
                 vphi = 2*np.pi * np.random.random()
                 vx, vy = vr * np.cos(vphi), vr * np.sin(vphi)
-                particle = Particle(x, y, vx, vy, rad, styles)
+                particle = Particle(x, y, vx, vy, rad, styles,score[i])
                 # Check that the Particle doesn't overlap one that's already
                 # been placed.
                 for p2 in self.particles:
@@ -144,7 +153,7 @@ class Simulation:
                 else:
                     self.particles.append(particle)
                     break
-
+        
     def handle_collisions(self):
         """Detect and handle any collisions between the Particles.
 
@@ -177,7 +186,7 @@ class Simulation:
         for i,j in pairs:
             if self.particles[i].overlaps(self.particles[j]):
                 change_velocities(self.particles[i], self.particles[j])
-
+                
     def advance_animation(self, dt):
         """Advance the animation by dt, returning the updated Circles list."""
 
@@ -235,6 +244,6 @@ if __name__ == '__main__':
     nparticles = 100
     #radii = np.random.random(nparticles)*0.03+0.02
     radii=0.1
-    styles = {'edgecolor': 'C0', 'linewidth': 2, 'fill': 'C0'}
+    styles = {'edgecolor': 'C0', 'linewidth': 2, 'fill': False}
     sim = Simulation(nparticles, radii, styles)
     sim.do_animation(save=False)
