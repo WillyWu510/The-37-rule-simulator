@@ -23,7 +23,7 @@ class Particle:
         if not self.styles:
             # Default circle styles
             self.styles = {'edgecolor': 'b', 'fill': False}
-        self.particle_met=[]
+        self.particles_met=[]
         
     # For convenience, map the components of the particle's position and
     # velocity vector onto the attributes x, y, vx and vy.
@@ -83,7 +83,7 @@ class Particle:
             self.y = 10-self.radius
             self.vy = -self.vy
     def have_met(self,other):
-        return other in self.met
+        return other.score in self.particles_met
 class Simulation:
     """A class for a simple hard-circle molecular dynamics simulation.
 
@@ -121,7 +121,7 @@ class Simulation:
                 for i in range(n):
                     yield radius
             radius = r_gen(n, radius)
-        np.random.shuffle(score)
+        #np.random.shuffle(score)
         self.n = n+1
         self.particles = []
         domain_length=10
@@ -130,8 +130,8 @@ class Simulation:
         vr = np.random.random() + 0.05
         vphi = 2*np.pi * np.random.random()
         vx, vy = vr * np.cos(vphi), vr * np.sin(vphi)
-        You = Particle(x, y, vx, vy, 0.1, {'edgecolor': 'r','facecolor':'r', 'fill': True})
-        self.particles.append(You)
+        self.You = Particle(x, y, vx, vy, 0.1, {'edgecolor': 'r','facecolor':'r', 'fill': True})
+        self.particles.append(self.You)
         for i, rad in enumerate(radius):
             # Try to find a random initial position for this particle.
             while True:
@@ -144,9 +144,12 @@ class Simulation:
                 vr = np.random.random() + 0.05
                 vphi = 2*np.pi * np.random.random()
                 vx, vy = vr * np.cos(vphi), vr * np.sin(vphi)
-                particle = Particle(x, y, vx, vy, rad, styles,score[i])
+                particle = Particle(x, y, vx, vy, rad, styles, score[i])
                 # Check that the Particle doesn't overlap one that's already
                 # been placed.
+                if score[i] == n-1:
+                    self.prince = particle
+                    self.prince.styles = {'edgecolor': 'g','facecolor':'g', 'fill': True}
                 for p2 in self.particles:
                     if p2.overlaps(particle):
                         break
@@ -186,6 +189,13 @@ class Simulation:
         for i,j in pairs:
             if self.particles[i].overlaps(self.particles[j]):
                 change_velocities(self.particles[i], self.particles[j])
+                #Determin whether you have met the one before
+                if self.You==self.particles[i]:
+                    if not self.You.have_met(self.particles[j]):
+                        self.You.particles_met.append(self.particles[j].score)
+                elif self.You==self.particles[j]:
+                    if not self.You.have_met(self.particles[i]):
+                        self.You.particles_met.append(self.particles[i].score)
                 
     def advance_animation(self, dt):
         """Advance the animation by dt, returning the updated Circles list."""
@@ -238,7 +248,7 @@ class Simulation:
             anim.save('collision.mp4', writer=writer)
         else:
             plt.show()
-
+        print(self.You.particles_met)
 
 if __name__ == '__main__':
     nparticles = 100
