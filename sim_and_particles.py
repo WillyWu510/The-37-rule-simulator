@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
+import matplotlib.colors as Colors
 from matplotlib import animation
 from itertools import combinations
 
@@ -52,6 +53,7 @@ class Particle:
     @vy.setter
     def vy(self, value):
         self.velocity[1] = value
+        
 
     def overlaps(self, other):
         """Does the circle of this Particle overlap that of other?"""
@@ -96,7 +98,7 @@ class Simulation:
 
     """
 
-    def __init__(self, n, radius=0.01, styles=None, l_score = np.arange(1,1000), strategy = 0):
+    def __init__(self, n, radius=0.01, styles=None, l_score = np.arange(1,1000), strategy = 0, speed="middle"):
         """Initialize the simulation with n Particles with radii radius.
 
         radius can be a single value or a sequence with n values.
@@ -106,10 +108,19 @@ class Simulation:
         the Particles.
 
         """
+        if speed == "middle":
+            self.speed = 3
+        elif speed == "slow":
+            self.speed = 1
+        elif speed == "fast":
+            self.speed = 7
+        else:
+            self.speed = 3
         self.fig, self.ax = plt.subplots()
         self.strategy = strategy
         self.init_particles(n, radius, styles , score=l_score)
-
+        
+        
     def init_particles(self, n, radius, styles=None , score = np.arange(1,1000)):
         """Initialize the n Particles of the simulation.
 
@@ -133,7 +144,7 @@ class Simulation:
         domain_length=10
         
         x, y = 0.1 + (1- 2*0.1) * np.random.uniform(0,domain_length),0.1 + (1- 2*0.1) *   np.random.uniform(0,domain_length)
-        vr = np.random.random() + 3.05
+        vr = np.random.random()*self.speed + 3.05
         vphi = 2*np.pi * np.random.random()
         vx, vy = vr * np.cos(vphi), vr * np.sin(vphi)
         self.You = Particle(x, y, vx, vy, 0.1, {'edgecolor': 'r','facecolor':'r', 'fill': True})
@@ -147,7 +158,7 @@ class Simulation:
                 x, y = rad + (1- 2*rad) * np.random.uniform(0,domain_length),rad + (1- 2*rad) * np.random.uniform(0,domain_length)
                 # Choose a random velocity (within some reasonable range of
                 # values) for the Particle.
-                vr = np.random.random() + 3.05
+                vr = np.random.random()*self.speed + 3.05
                 vphi = 2*np.pi * np.random.random()
                 vx, vy = vr * np.cos(vphi), vr * np.sin(vphi)
                 particle = Particle(x, y, vx, vy, rad, styles, score[i])
@@ -199,10 +210,24 @@ class Simulation:
                 #Determin whether you have met the one before
                 if self.You==self.particles[i]:
                     if not self.You.have_met(self.particles[j]) and len(self.You.particles_met) < self.strategy:
+                        a = (1-self.particles[j].score/(self.n-1),1-self.particles[j].score/(self.n-1),self.particles[j].score/(self.n-1))
                         self.You.particles_met.append(self.particles[j].score)
+                        self.particles[j].styles = {'edgecolor': a,'facecolor':a, 'fill': True}
+                        self.circles[j] = self.particles[j].draw(self.ax)
+                    elif len(self.You.particles_met) >= self.strategy:
+                        self.You.particles_met.append(self.particles[j].score)
+                        self.particles[j].styles = {'edgecolor': (0,0,0), 'fill': False}
+                        self.circles[j] = self.particles[j].draw(self.ax)
                 elif self.You==self.particles[j] :
                     if not self.You.have_met(self.particles[i]) and len(self.You.particles_met) < self.strategy:
+                        a = (self.particles[i].score/(self.n-1),1-self.particles[i].score/(self.n-1),self.particles[i].score/(self.n-1))
                         self.You.particles_met.append(self.particles[i].score)
+                        self.particles[i].styles = {'edgecolor': a,'facecolor':a, 'fill': True}
+                        self.circles[i] = self.particles[i].draw(self.ax)
+                    elif len(self.You.particles_met) >= self.strategy:
+                        self.You.particles_met.append(self.particles[i].score)
+                        self.particles[i].styles = {'edgecolor': (0,0,0) ,'fill': False}
+                        self.circles[i] = self.particles[i].draw(self.ax)
                 if len(self.You.particles_met)!=0:
                     self.You.expected_value=max(self.You.particles_met)        
                 #Choose the right one
@@ -248,6 +273,9 @@ class Simulation:
         elif len(self.You.particles_met)==self.n-1:
             print("No, I can't make a choice. I'm now a frog...Ribbit.")
             plt.close(self.fig)
+        elif self.prince in self.You.particles_met and len(self.You.particles_met) < self.strategy:
+            print("No, I throw away the prince. I'm now a frog...Ribbit.")
+            plt.close(self.fig)
         return self.circles
 
     def do_animation(self, save=False):
@@ -256,7 +284,6 @@ class Simulation:
         To save the animation as a MP4 movie, set save=True.
         """
 
-        #fig, self.ax = plt.subplots()
         
         
         for s in ['top','bottom','left','right']:
@@ -282,13 +309,15 @@ class Simulation:
                 print("Yes! You're my Mr.right.")
             else:
                 print("Yuck, I kiss a real frog.")
-
+        
 if __name__ == '__main__':
     nparticles = 100
     strategy = int(input("please enter an integer:"))
-
+    #speed = input("How fast do you want(fast/middle/slow):")
     #radii = np.random.random(nparticles)*0.03+0.02
     radii=0.1
-    styles = {'edgecolor': 'C0', 'linewidth': 2, 'fill': False}
-    sim = Simulation(nparticles, radii, styles, np.arange(1,nparticles+1), strategy)
+    styles = {'edgecolor': (240/255,240/255,240/255), 'linewidth': 1, 'fill': False}
+    test = []
+    sim = Simulation(nparticles, radii, styles, np.arange(1,nparticles+1), strategy, 'fast')
     sim.do_animation(save=False)
+    print(test)
