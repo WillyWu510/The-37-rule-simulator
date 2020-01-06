@@ -4,6 +4,7 @@ from matplotlib.patches import Circle
 import matplotlib.colors as Colors
 from matplotlib import animation
 from itertools import combinations
+import time
 
 class Particle:
     """A class representing a two-dimensional particle."""
@@ -109,7 +110,7 @@ class Simulation:
 
         """
         if speed == "middle":
-            self.speed = 3
+            self.speed = 5
         elif speed == "slow":
             self.speed = 1
         elif speed == "fast":
@@ -119,7 +120,7 @@ class Simulation:
         self.fig, self.ax = plt.subplots()
         self.strategy = strategy
         self.init_particles(n, radius, styles , score=l_score)
-        
+        self.time= time.time()
         
     def init_particles(self, n, radius, styles=None , score = np.arange(1,1000)):
         """Initialize the n Particles of the simulation.
@@ -204,9 +205,13 @@ class Simulation:
         # into the self.particles list of Particles on the fly.
         pairs = combinations(range(self.n), 2)
         for i,j in pairs:
+            
             if self.particles[i].overlaps(self.particles[j]):
+
                 change_velocities(self.particles[i], self.particles[j])
                 
+             
+                        
                 #Determin whether you have met the one before
                 if self.You==self.particles[i]:
                     if not self.You.have_met(self.particles[j]) and len(self.You.particles_met) < self.strategy:
@@ -215,29 +220,36 @@ class Simulation:
                         self.particles[j].styles = {'edgecolor': a,'facecolor':a, 'fill': True}
                         self.circles[j] = self.particles[j].draw(self.ax)
                     elif len(self.You.particles_met) >= self.strategy:
-                        self.You.particles_met.append(self.particles[j].score)
                         self.particles[j].styles = {'edgecolor': (0,0,0), 'fill': False}
                         self.circles[j] = self.particles[j].draw(self.ax)
+                        if not self.You.have_met(self.particles[j]):
+                            self.You.particles_met.append(self.particles[j].score)
+                        
                 elif self.You==self.particles[j] :
                     if not self.You.have_met(self.particles[i]) and len(self.You.particles_met) < self.strategy:
                         a = (self.particles[i].score/(self.n-1),1-self.particles[i].score/(self.n-1),self.particles[i].score/(self.n-1))
                         self.You.particles_met.append(self.particles[i].score)
                         self.particles[i].styles = {'edgecolor': a,'facecolor':a, 'fill': True}
                         self.circles[i] = self.particles[i].draw(self.ax)
-                    elif len(self.You.particles_met) >= self.strategy:
-                        self.You.particles_met.append(self.particles[i].score)
+                    elif len(self.You.particles_met) >= self.strategy and not self.You.have_met(self.particles[i]):
                         self.particles[i].styles = {'edgecolor': (0,0,0) ,'fill': False}
-                        self.circles[i] = self.particles[i].draw(self.ax)
-                if len(self.You.particles_met)!=0:
+                        if not self.You.have_met(self.particles[i]):
+                            self.You.particles_met.append(self.particles[i].score)
+                        self.circles[i] = self.particles[i].draw(self.ax)                        
+                        
+                if self.strategy >= len(self.You.particles_met) > 0:
                     self.You.expected_value=max(self.You.particles_met)        
-                #Choose the right one
+                 
+                #Choose the one
                 if self.You==self.particles[i] and len(self.You.particles_met) >= self.strategy and not self.You.have_chosen():
                     if self.particles[j].score > self.You.expected_value:
                         self.You.choice = self.particles[j].score
                 elif self.You==self.particles[j] and len(self.You.particles_met) >= self.strategy and not self.You.have_chosen():
                     if self.particles[i].score > self.You.expected_value:
                         self.You.choice = self.particles[j].score
-                    
+                
+                if self.prince.score-1 in self.You.particles_met and len(self.You.particles_met) == self.strategy:
+                    self.You.choice = self.prince.score
     def advance_animation(self, dt):
         """Advance the animation by dt, returning the updated Circles list."""
 
@@ -265,7 +277,20 @@ class Simulation:
     def animate(self, i):
         """The function passed to Matplotlib's FuncAnimation routine."""
 
+        
         self.advance_animation(0.1)
+        
+        if  self.strategy > len(self.You.particles_met) > 0:
+            if len(self.You.particles_met)%10==0:
+                for i, p in enumerate(self.particles):
+                    p.radius += 0.005*len(self.You.particles_met)/self.strategy
+                    self.circles[i] = p.draw(self.ax)
+        b = time.time()
+        
+        if b-self.time > 100:
+            print("Too long.")
+            plt.close(self.fig)
+            
         if self.You.have_chosen():
             print(self.You.particles_met)
             print("I choose you!!!")
@@ -273,7 +298,7 @@ class Simulation:
         elif len(self.You.particles_met)==self.n-1:
             print("No, I can't make a choice. I'm now a frog...Ribbit.")
             plt.close(self.fig)
-        elif self.prince in self.You.particles_met and len(self.You.particles_met) < self.strategy:
+        elif self.prince.score in self.You.particles_met and len(self.You.particles_met) <= self.strategy:
             print("No, I throw away the prince. I'm now a frog...Ribbit.")
             plt.close(self.fig)
         return self.circles
@@ -285,7 +310,7 @@ class Simulation:
         """
 
         
-        
+        self.time = time.time()
         for s in ['top','bottom','left','right']:
             self.ax.spines[s].set_linewidth(2)
         self.ax.set_aspect('equal', 'box')
@@ -309,15 +334,27 @@ class Simulation:
                 print("Yes! You're my Mr.right.")
             else:
                 print("Yuck, I kiss a real frog.")
+                
+            return self.You.choice
         
 if __name__ == '__main__':
     nparticles = 100
-    strategy = int(input("please enter an integer:"))
-    #speed = input("How fast do you want(fast/middle/slow):")
-    #radii = np.random.random(nparticles)*0.03+0.02
     radii=0.1
-    styles = {'edgecolor': (240/255,240/255,240/255), 'linewidth': 1, 'fill': False}
-    test = []
-    sim = Simulation(nparticles, radii, styles, np.arange(1,nparticles+1), strategy, 'fast')
-    sim.do_animation(save=False)
-    print(test)
+    prob = []
+    styles = {'edgecolor': (0,0,0), 'linewidth': 1, 'fill': False}
+    for strategy in range(7,98,10):
+        sub_prob = []
+        print(f'strategy = {strategy}\n')
+        for j in range(10):
+            count=0
+            step=0
+            for i in range(10):
+                sim = Simulation(nparticles, radii, styles, np.arange(1,nparticles+1), strategy)
+                a = sim.do_animation(save=False)
+                step+=1
+                if a==100:
+                    count+=1
+            sub_prob.append(count/step)
+        prob.append(sub_prob)    
+        print("\n")
+    print(prob)
